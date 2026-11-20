@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Seguimiento diario LiDAR | Mazati</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: tablero de trabajo diario, sobrio, hermano del tablero del ETO del Paisaje
+   IDEA: la bitácora de vuelo con su semáforo, día por día
+   PICTURE: avance contra lo planeado y color del día en la banda; curva de avance
+   COLOUR and TYPE: verde bosque del tablero del Paisaje; semáforo siempre con ícono y texto; Bitter y Public Sans
+   LAYOUT: cabecera con navegación por día, banda de balance, tarjetas por frente, pestañas */
+:root{
+  --bg:#F3F6F2;--surface:#FFFFFF;--ink:#1E2420;--muted:#5F6862;--line:#D5DDD2;--soft:#E8EEE6;
+  --forest:#1F3D2B;--forest2:#2E5A3F;--on-forest:#FFFFFF;--on-forest-muted:#B9D0B2;
+  --v:#2E8B57;--a:#D9A21B;--r:#C0392B;--na:#9AA19C;--plan:#8A938D;--real:#2E6B45;--focus:#D9A21B;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131915;--surface:#1B231E;--ink:#E6ECE7;--muted:#9BA7A0;--line:#2F3B33;--soft:#232D26;
+    --forest:#16301F;--forest2:#24472F;--on-forest-muted:#9DBB95;
+    --v:#4FB37A;--a:#E0B13A;--r:#E0675A;--na:#7D857F;--plan:#7D857F;--real:#5FAE7C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131915;--surface:#1B231E;--ink:#E6ECE7;--muted:#9BA7A0;--line:#2F3B33;--soft:#232D26;
+  --forest:#16301F;--forest2:#24472F;--on-forest-muted:#9DBB95;
+  --v:#4FB37A;--a:#E0B13A;--r:#E0675A;--na:#7D857F;--plan:#7D857F;--real:#5FAE7C;
+}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5;overflow-x:clip}
+h1,h2,h3{font-family:"Bitter",Georgia,"Times New Roman",serif;margin:0;line-height:1.2}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header.top{background:var(--forest);color:var(--on-forest)}
+header.top .wrap{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;padding-top:28px;padding-bottom:22px}
+.brand p{margin:0 0 6px;color:var(--on-forest-muted);font-size:14px}
+.brand h1{font-size:clamp(24px,3.4vw,34px);text-wrap:balance}
+.daynav{display:flex;align-items:center;gap:6px}
+.daynav button{background:transparent;border:1px solid rgba(255,255,255,.35);color:var(--on-forest);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:18px}
+.daynav button:hover{background:rgba(255,255,255,.1)}
+.daynav .label{font-family:"Bitter",Georgia,serif;font-weight:700;font-size:clamp(19px,2.6vw,26px);min-width:230px;text-align:center}
+.mode{font-size:13px;color:var(--on-forest-muted);width:100%;margin-top:-6px}
+.demo{background:var(--a);color:#1E2420;font-weight:600;font-size:14px}
+.demo .btn{background:#fff;color:#1E2420;border-color:rgba(0,0,0,.2)}
+.demo .wrap{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding-top:8px;padding-bottom:8px}
+.balance{background:var(--forest2);color:var(--on-forest)}
+.balance .wrap{padding-top:22px;padding-bottom:24px}
+.bal-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;margin-bottom:14px}
+.pct{font-family:"Bitter",Georgia,serif;font-size:clamp(42px,6vw,56px);font-weight:700;line-height:1}
+.pct small{font-size:22px}
+.bal-head .txt{flex:1 1 320px;max-width:560px;color:var(--on-forest-muted);font-size:14px}
+.bal-head .txt strong{color:var(--on-forest)}
+.daychip{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.daychip .lbl{font-size:12px;color:var(--on-forest-muted)}
+.daychip .sem{background:var(--surface);font-size:15px;padding:4px 12px 4px 5px}
+.meter{position:relative;height:30px;border-radius:6px;background:rgba(255,255,255,.14);overflow:hidden}
+.meter .fill{position:absolute;inset:0 auto 0 0;background:var(--on-forest);opacity:.9;border-radius:6px 0 0 6px}
+.meter .tick{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--a)}
+.mtxt,.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:13px;align-items:center}
+.sw{display:inline-block;width:18px;height:10px;border-radius:3px;margin-right:6px;vertical-align:0}
+.sw.real{background:var(--on-forest)}.sw.plan{background:var(--a)}
+.legend .sem{background:var(--surface)}
+.legend b{font-weight:700;margin-left:2px}
+.sem{--c:var(--na);display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;line-height:1.3;padding:2px 10px 2px 3px;border-radius:999px;background:color-mix(in srgb,var(--c) 16%,var(--surface));color:var(--ink);white-space:nowrap}
+.sem i{width:18px;height:18px;border-radius:50%;background:var(--c);color:#fff;display:inline-grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;flex:none}
+.sem.verde{--c:var(--v)}.sem.amarillo{--c:var(--a)}.sem.rojo{--c:var(--r)}.sem.amarillo i{color:#1E2420}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px;margin:22px 0 8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card h3{font-size:17px}
+.card .who{color:var(--muted);font-size:13px;margin:2px 0 10px}
+.mini{height:8px;border-radius:4px;overflow:hidden;background:var(--soft);margin:4px 0 10px}
+.mini span{display:block;height:100%;background:var(--real);border-radius:4px}
+.card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;gap:6px 10px}
+.card dt{font-size:12px;color:var(--muted)}
+.card dd{margin:0;font-weight:700;font-size:17px}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.bars li{display:grid;grid-template-columns:1fr auto;font-size:13px;column-gap:8px}
+.bars li .mini{grid-column:1 / -1;margin:2px 0 6px}
+.bars b{white-space:nowrap}
+.next{margin:0;font-size:13px;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:22px;overflow-x:auto}
+nav.tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px;cursor:pointer;color:var(--muted);font-weight:600;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--forest2)}
+section.panel{padding:18px 0 48px}
+section.panel[hidden]{display:none}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.spacer{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:600;font-size:14px}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--forest2);border-color:var(--forest2);color:#fff}
+.btn.danger{color:var(--r)}
+.btn.small{padding:6px 10px;font-size:13px}
+.iconbtn{background:none;border:0;cursor:pointer;color:var(--muted);padding:8px;border-radius:6px;font-size:13px;font-weight:600}
+.iconbtn:hover{background:var(--soft);color:var(--ink)}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th.n,td.n{text-align:right;white-space:nowrap}
+td.ind{font-weight:700;white-space:nowrap}
+td.rule{color:var(--muted);font-size:12.5px;min-width:240px}
+tr.go{cursor:pointer}tr.go:hover td{background:var(--soft)}
+.dayhead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:4px 0 12px}
+.dayhead h2{font-size:21px}
+.warn{background:color-mix(in srgb,var(--r) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--r) 40%,var(--line));border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:14px}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:14px}
+.notes div,.decl,.onb,.empty{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.notes h3,.decl h3{font-size:15px;margin-bottom:4px}
+.notes p{margin:0;font-size:14px}
+.decl{margin-top:14px}
+.decl dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px 16px;margin:6px 0 0}
+.decl dt{font-size:12px;color:var(--muted)}.decl dd{margin:0;font-weight:600;font-size:14px}
+.onb h2{font-size:20px;margin-bottom:8px}.onb ol{margin:0 0 10px;padding-left:22px;display:grid;gap:8px}.onb p{margin:0}
+.empty{color:var(--muted);text-align:center;padding:26px}
+.empty p{margin:4px 0}
+.note{color:var(--muted);font-size:13px;margin:10px 0 0;max-width:780px}
+.calnav{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.calnav h2{font-size:20px;min-width:180px;text-align:center}
+.calnav button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:18px}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calgrid .wd{font-size:12px;font-weight:600;color:var(--muted);padding:2px 4px}
+.cday{--c:transparent;min-height:92px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 6px;text-align:left;display:flex;flex-direction:column;gap:4px;align-items:flex-start;cursor:pointer;background:color-mix(in srgb,var(--c) 14%,var(--surface))}
+.cday.out{opacity:.4}
+.cday.sel{outline:2px solid var(--ink);outline-offset:-2px}
+.cday.c-verde{--c:var(--v)}.cday.c-amarillo{--c:var(--a)}.cday.c-rojo{--c:var(--r)}
+.cday .d{font-weight:700;font-size:13px}
+.cday .ha,.cday .meta,.cday .rv{font-size:12px;color:var(--muted);line-height:1.25}
+.cday .rv{color:var(--ink);font-weight:600}
+.cday .sem{font-size:12px}
+.callegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:13px;color:var(--muted);align-items:center}
+h2.sub{font-size:19px;margin:6px 0 10px}
+.fig{position:relative;min-height:320px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.fig .fempty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);margin:0;padding:20px;text-align:center}
+.fig .fempty[hidden]{display:none}
+.grid{stroke:var(--line);stroke-width:1}
+.ax{fill:var(--muted);font-size:12px;font-family:"Public Sans",system-ui,sans-serif}
+.lab{fill:var(--muted);font-size:12px;font-weight:600;font-family:"Public Sans",system-ui,sans-serif}
+.lab.strong{fill:var(--ink)}
+.lplan{fill:none;stroke:var(--plan);stroke-width:2;stroke-dasharray:6 5}
+.lreal{fill:none;stroke:var(--real);stroke-width:2.5;stroke-linejoin:round}
+.lmin{stroke:var(--r);stroke-width:2}
+.xh{stroke:var(--muted);stroke-width:1}
+.pt{stroke:var(--surface);stroke-width:2}
+.pt.c-verde{fill:var(--v)}.pt.c-amarillo{fill:var(--a)}.pt.c-rojo{fill:var(--r)}.pt.c-na{fill:var(--na)}
+.tip{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.15);pointer-events:none;min-width:150px}
+.tip[hidden]{display:none}
+.ent{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.ent li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.ent .eh{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.ent h3{font-size:17px}
+.ent .crit{margin:6px 0 4px;font-size:14px}
+.ent .m{margin:0 0 8px;color:var(--muted);font-size:13px}
+.lead{margin:0 0 14px}
+dialog{border:0;border-radius:12px;padding:0;max-width:720px;width:calc(100% - 24px);background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,20,14,.45)}
+dialog form{padding:22px 22px 18px;max-height:88vh;overflow:auto}
+dialog h2{font-size:21px;margin-bottom:8px}
+.intro{color:var(--muted);font-size:14px;margin:0 0 12px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fields label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.fields label.full,.fields .fh{grid-column:1 / -1}
+.fields label.chk{flex-direction:row;align-items:center;gap:8px}
+.fields input,.fields select,.fields textarea{border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px;background:var(--bg);color:var(--ink);font-weight:400}
+.fields textarea{min-height:64px;resize:vertical}
+.fh{font-size:15px;margin:10px 0 0;color:var(--ink)}
+.gen{background:var(--soft);border-radius:10px;padding:12px;margin-bottom:12px}
+.gen .btn{margin-top:10px}
+.planlist{border:1px solid var(--line);border-radius:8px;max-height:30vh;overflow:auto;margin:6px 0 12px}
+.prow{display:grid;grid-template-columns:minmax(0,1.3fr) auto minmax(0,1.2fr) auto;gap:10px;align-items:center;padding:4px 10px;border-bottom:1px solid var(--line);font-size:14px}
+.prow:last-child{border-bottom:0}
+.prow .n{text-align:right;font-weight:600;white-space:nowrap}.prow .m,.planlist .m{color:var(--muted);font-size:13px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+.dlg-actions .left{margin-right:auto}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media (max-width:600px){
+  table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}
+  .stack td{display:flow-root;border:0;padding:3px 12px;padding-inline-start:9em;text-align:start;white-space:normal}
+  .stack td::before{content:attr(data-l);float:inline-start;width:8.5em;margin-inline-start:-9em;color:var(--muted);font-size:12px;font-weight:600}
+  .stack td:empty{display:none}.stack tr{border-bottom:1px solid var(--line)}td.rule{min-width:0}
+  .fields{grid-template-columns:1fr}.daynav .label{min-width:0;font-size:18px}
+  .cday{min-height:58px;padding:4px}.cday .ha,.cday .meta,.cday .rv{display:none}
+  .cday .sem{font-size:0;padding:0;background:none}.cday .sem i{font-size:11px}
+  .prow{grid-template-columns:1fr auto auto}.prow .m{display:none}
+}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <p>Mazati Reserve | Levantamiento LiDAR con SIGAP</p>
+      <h1>Seguimiento diario del levantamiento LiDAR</h1>
+    </div>
+    <div class="daynav" aria-label="Día del reporte">
+      <button id="prevD" aria-label="Día anterior">‹</button>
+      <div class="label" id="dayLabel" aria-live="polite">…</div>
+      <button id="nextD" aria-label="Día siguiente">›</button>
+    </div>
+    <div class="mode" id="mode">Leyendo la hoja de captura…</div>
+  </div>
+</header>
+<div class="demo" id="demoBar" hidden><div class="wrap"><span>Ejemplo con datos ficticios del 23 de noviembre al 1 de diciembre.</span><button class="btn small" id="demoOff">Salir del ejemplo</button></div></div>
+
+<div class="balance">
+  <div class="wrap">
+    <div class="bal-head">
+      <div class="pct" id="pct">s/d</div>
+      <div class="txt" id="balTxt"></div>
+      <div class="daychip" id="dayChip"></div>
+    </div>
+    <div class="meter" id="meter" role="img" aria-label="Avance real frente a lo planeado"></div>
+    <div class="mtxt" id="meterTxt"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="cards" id="cards"></div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="dia">Reporte del día</button>
+    <button role="tab" aria-selected="false" data-tab="bitacora">Bitácora</button>
+    <button role="tab" aria-selected="false" data-tab="calendario">Calendario</button>
+    <button role="tab" aria-selected="false" data-tab="curva">Curva de avance</button>
+    <button role="tab" aria-selected="false" data-tab="revuelos">Revuelos</button>
+    <button role="tab" aria-selected="false" data-tab="entregas">Entregas</button>
+  </nav>
+  <section class="panel" id="tab-dia"></section>
+  <section class="panel" id="tab-bitacora" hidden></section>
+  <section class="panel" id="tab-calendario" hidden></section>
+  <section class="panel" id="tab-curva" hidden>
+    <h2 class="sub">Avance acumulado: real contra planeado</h2>
+    <div class="fig" id="figA"><svg role="img" aria-label="Avance acumulado real y planeado, en porcentaje de la superficie total"></svg><p class="fempty" id="emptyA" hidden>Anota la superficie total y el calendario en la hoja de captura para ver la curva.</p><div class="tip" id="tipA" hidden></div></div>
+    <p class="note">Porcentaje de la superficie total. La línea punteada es el calendario base de SIGAP; la continua, el área nueva acumulada de los reportes, con el color de cada día.</p>
+    <h2 class="sub" style="margin-top:26px">Densidad mediana de cada día</h2>
+    <div class="fig" id="figB"><svg role="img" aria-label="Densidad mediana por día frente a la declarada y al mínimo de 25 puntos por metro cuadrado"></svg><p class="fempty" id="emptyB" hidden>Aparece cuando los reportes traigan la densidad mediana.</p></div>
+    <p class="note">La línea roja es el mínimo del anexo (25 pts/m²) y la punteada, la densidad que SIGAP declaró. Cada punto lleva el color del indicador de densidad mediana.</p>
+  </section>
+  <section class="panel" id="tab-revuelos" hidden></section>
+  <section class="panel" id="tab-entregas" hidden></section>
+</main>
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+{
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const pd = s => { const [y,m,d] = String(s).split('-').map(Number); return new Date(y, m-1, d); };
+const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const addD = (s,n) => { const d = pd(s); d.setDate(d.getDate()+n); return iso(d); };
+const diffD = (a,b) => Math.round((pd(b) - pd(a)) / 864e5);
+const addM = (m,n) => { let [y,mo] = m.split('-').map(Number); mo += n; while(mo>12){mo-=12;y++} while(mo<1){mo+=12;y--} return y+'-'+String(mo).padStart(2,'0'); };
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const fLong = s => { const d = pd(s); return d.getDate()+' de '+MESES[d.getMonth()]+' de '+d.getFullYear(); };
+const fShort = s => { const d = pd(s); return d.getDate()+' '+MESES[d.getMonth()].slice(0,3); };
+const fDay = s => { const d = pd(s); return cap(DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]); };
+const num = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
+const fmt = (v, dec = 0) => v == null ? 's/d' : Number(v).toLocaleString('es-MX', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let TODAY = iso(new Date()); const DEMO_HOY = '2026-12-01';
+
+const RANK = {verde:0, amarillo:1, rojo:2};
+const LBL = {verde:'Verde', amarillo:'Amarillo', rojo:'Rojo', na:'No aplica'};
+const ICO = {verde:'✓', amarillo:'!', rojo:'✕', na:'·'};
+const worst = list => { let w = null; list.forEach(c => { if (c && c !== 'na' && (w === null || RANK[c] > RANK[w])) w = c; }); return w || 'na'; };
+const sem = (c, txt) => `<span class="sem ${c}"><i aria-hidden="true">${ICO[c]}</i>${esc(txt || LBL[c])}</span>`;
+const TIPOS = [['sPino','Pino'],['sEnc','Encino'],['sPE','Pino-encino'],['sBMM','Bosque mesófilo'],['sGal','Bosque de galería']];
+const ENTREGAS = [
+  ['e1','Antes de volar','Valores declarados completos: densidad esperada de 25 pts/m² o más, ángulo de 12° o menos, traslape mayor a 50% y plan con 30 o más puntos de verificación.'],
+  ['e2','Bloque de prueba','Puntos de suelo suficientes bajo el dosel denso, o ajustes de parámetros acordados por escrito.'],
+  ['e3','Fin del vuelo','Densidad total sin celdas bajo 25 pts/m²; zonas con menos de 1 punto de suelo por m² explicadas; bitácoras, trayectorias y registros de la base completos.'],
+  ['e4','Modelos preliminares del terreno y del dosel','Malla de 0.5 m y sin errores visibles en el sombreado; sirven para elegir los sitios en la cuadrícula.'],
+  ['e5','Entrega final','Exactitud en terreno abierto, bajo vegetación y entre líneas dentro de los umbrales, calculada con puntos que no se usaron en el ajuste; productos de la tabla 2 del anexo.']];
+const EST = {pendiente:['Pendiente','na'], revision:['En revisión','amarillo'], observada:['Con observaciones','rojo'], aprobada:['Aprobada','verde']};
+const OPT = {
+  aTiempo:[['si','Sí, antes de las 21:00'],['no','No llegó a tiempo']],
+  colorSigap:[['','Sin color'],['verde','Verde'],['amarillo','Amarillo'],['rojo','Rojo']],
+  clima:[['ok','Sin lluvia ni niebla, viento dentro del límite'],['perdido','Día o tramo perdido por clima'],['lluvia','Voló con lluvia, llovizna o niebla']],
+  sn:[['no','No'],['si','Sí']],
+  param:[['','Sin vuelo hoy'],['iguales','Iguales a lo declarado'],['avisado','Cambio avisado por escrito antes del vuelo'],['sin_aviso','Cambio sin aviso']],
+  baseOk:[['si','Sí, todo el vuelo'],['no','No, hubo huecos']],
+  tray:[['','Sin vuelo el día anterior'],['fija','Solución fija'],['flotante','Tramos cortos flotantes, identificados'],['sin_fija','Sin solución fija']],
+  ctrlCal:[['','Sin puntos hoy'],['fija','Solución fija, 3 cm o menos'],['ppk','Bajo el dosel en PPK, por procesar'],['flotante','Flotante usada, o verificación usada en el ajuste']],
+  fichas:[['','Sin sitios hoy'],['completas','Completas'],['reemplazo','Con reemplazo justificado'],['incompleta','Ficha incompleta'],['fuera','Sitio fuera de la lista']],
+  evid:[['completas','Completas'],['falta','Falta alguna; se envía mañana'],['sin','Sin fotos']],
+  motivo:[['densidad','Densidad bajo 25 pts/m²'],['traslape','Traslape de 50% o menos'],['trayectoria','Trayectoria sin solución fija'],['ruido','Ruido por lluvia o niebla'],['otro','Otro']],
+  estado:Object.entries(EST).map(([k,[l]]) => [k,l])};
+const lab = (k, v) => (OPT[k].find(o => o[0] === v) || [null, v || ''])[1];
+
+const COLLS = ['reportes','plan','revuelos','entregas','config'];
+const empty = () => ({reportes:{}, plan:{}, revuelos:{}, entregas:{}, config:{}});
+let real = empty(), data = real, demo = false, DB = null, store = null, canWrite = null;
+let day = null, tab = 'dia', calMonth = null, bitFilter = 'all', pending = COLLS.length;
+const hoy = () => demo ? DEMO_HOY : TODAY;
+const editable = () => false;
+
+const cfg = () => data.config.base || {};
+const planList = () => Object.entries(data.plan).map(([f,p]) => ({fecha:f, ha:num(p.ha) || 0, nota:p.nota || ''})).sort((a,b) => a.fecha < b.fecha ? -1 : 1);
+const repList = () => Object.entries(data.reportes).map(([f,r]) => Object.assign({fecha:f}, r)).sort((a,b) => a.fecha < b.fecha ? -1 : 1);
+const revList = () => Object.entries(data.revuelos).map(([id,v]) => Object.assign({id}, v)).sort((a,b) => (a.detectado || '') < (b.detectado || '') ? -1 : 1);
+const totalHa = () => num(cfg().totalHa) || planList().reduce((s,p) => s + p.ha, 0) || null;
+const planTo = f => planList().filter(p => p.fecha <= f).reduce((s,p) => s + p.ha, 0);
+const realTo = f => repList().filter(r => r.fecha <= f).reduce((s,r) => s + (num(r.haNuevas) || 0), 0);
+const metaDe = f => data.plan[f] ? num(data.plan[f].ha) || 0 : 0;
+const resuelto = (v, f) => !!v.resuelto && v.resuelto <= f;
+function estRev(v, f){
+  if (v.detectado && v.detectado > f) return ['na','Aún no se detecta'];
+  if (resuelto(v, f)) return ['verde','Resuelto'];
+  if (v.detectado && diffD(v.detectado, f) > 2) return ['rojo','Más de 48 h sin resolver'];
+  if (!v.programado) return ['rojo','Sin fecha'];
+  return ['amarillo','Programado'];
+}
+
+/* ---------- reglas de la guía de supervisión (versión técnica, 20 nov 2026) ---------- */
+function evaluate(r){
+  const c = cfg(), f = r.fecha, prev = repList().filter(x => x.fecha < f).pop() || null;
+  const vol = (num(r.vuelos) || 0) > 0, volPrev = !!prev && (num(prev.vuelos) || 0) > 0, rows = [];
+  const add = (k, nombre, color, valor, regla) => rows.push({k, nombre, color, valor, regla});
+  add('hora','Reporte a las 21:00', r.aTiempo === 'no' ? 'rojo' : 'verde', r.aTiempo === 'no' ? 'No llegó a tiempo' : 'Recibido a tiempo', 'Si a las 21:00 no hay reporte, el día es rojo');
+  const pl = planTo(f), re = realTo(f), ratio = pl > 0 ? re / pl : null;
+  let ca = ratio == null ? 'na' : ratio >= .9 ? 'verde' : ratio >= .75 ? 'amarillo' : 'rojo';
+  if (r.clima === 'perdido' && ca === 'verde') ca = 'amarillo';
+  const sinT = x => !!x && (num(x.haNuevas) || 0) === 0 && (num(x.haRevuelo) || 0) === 0 && x.clima !== 'perdido' && metaDe(x.fecha) > 0;
+  if (sinT(r) && sinT(prev) && diffD(prev.fecha, f) <= 2) ca = 'rojo';
+  add('avance','Avance acumulado', ca, ratio == null ? 'Falta el calendario base' : `${fmt(ratio * 100)}% de lo planeado: ${fmt(re)} de ${fmt(pl)} ha a la fecha`, 'Verde: 90% o más. Amarillo: 75% a menos de 90%, o día perdido por clima. Rojo: menos de 75%, o dos días seguidos sin trabajo sin causa de clima');
+  const hb = num(r.haBajo), venc = revList().filter(v => !resuelto(v, f) && v.detectado && v.detectado <= f && diffD(v.detectado, f) > 2);
+  let cd, vd;
+  if (hb == null) { cd = volPrev ? 'amarillo' : 'na'; vd = volPrev ? 'Falta el dato' : 'Sin datos nuevos que revisar'; }
+  else if (hb === 0) { cd = 'verde'; vd = 'Ninguna celda bajo 25 pts/m²'; }
+  else { cd = r.revProg === 'si' ? 'amarillo' : 'rojo'; vd = `${fmt(hb, 1)} ha bajo 25 pts/m², ${r.revProg === 'si' ? 'con fecha para volar de nuevo' : 'sin fecha para volar de nuevo'}`; }
+  if (venc.length) { cd = 'rojo'; vd += `. ${venc.length} ${venc.length === 1 ? 'revuelo lleva' : 'revuelos llevan'} más de 48 horas sin resolver`; }
+  add('dens','Densidad del día', cd, vd, 'Verde: ninguna celda de 5 m bajo 25 pts/m². Amarillo: celdas bajo el umbral con fecha dentro de 48 horas. Rojo: sin fecha, o sin resolver después de 48 horas');
+  const md = num(r.densMed), dc = num(c.densDecl); let cm, vm;
+  if (md == null) { cm = volPrev ? 'amarillo' : 'na'; vm = volPrev ? 'Falta el dato' : 'Sin datos nuevos que revisar'; }
+  else if (dc == null) { cm = md < 25 ? 'rojo' : 'na'; vm = `${fmt(md)} pts/m²; falta la densidad declarada`; }
+  else { const caida = (dc - md) / dc; cm = md < 25 ? 'rojo' : md >= dc ? 'verde' : caida <= .2 ? 'amarillo' : (r.densExpl === 'si' ? 'amarillo' : 'rojo'); vm = `${fmt(md)} pts/m² frente a ${fmt(dc)} declarada${md < dc ? `, ${fmt(caida * 100)}% menor` : ''}`; }
+  add('med','Densidad mediana', cm, vm, 'Verde: igual o mayor que la declarada. Amarillo: hasta 20% menor. Rojo: más de 20% menor sin explicación, o mediana bajo 25 pts/m²');
+  const tm = num(r.trasMin); let ct, vt;
+  if (tm == null) { ct = vol ? 'amarillo' : 'na'; vt = vol ? 'Falta el dato' : 'Sin vuelo hoy'; }
+  else { ct = tm > 50 ? 'verde' : (r.trasProg === 'si' ? 'amarillo' : 'rojo'); vt = `Mínimo de ${fmt(tm)}%${tm <= 50 ? (r.trasProg === 'si' ? ', tramos ya programados' : ', tramos sin fecha') : ''}`; }
+  add('tras','Traslape lateral', ct, vt, 'Verde: mayor a 50% en todas las líneas. Amarillo: tramos de 50% o menos ya programados. Rojo: tramos sin fecha');
+  const cp = {iguales:'verde', avisado:'amarillo', sin_aviso:'rojo'}[r.param] || (vol ? 'amarillo' : 'na');
+  add('param','Parámetros de vuelo', cp, r.param ? lab('param', r.param) : (vol ? 'Falta el dato' : 'Sin vuelo hoy'), 'Altura, velocidad y ángulo iguales a lo declarado. Cambio avisado por escrito: amarillo. Cambio sin aviso: rojo (anexo, sección 7)');
+  const pdop = num(r.pdop), g = [], gv = [];
+  if (vol) {
+    g.push(r.baseOk === 'no' ? 'rojo' : 'verde'); gv.push(r.baseOk === 'no' ? 'base con huecos' : 'base completa');
+    if (pdop == null) { g.push('amarillo'); gv.push('PDOP sin dato'); } else { g.push(pdop > 4 ? 'rojo' : pdop > 3 ? 'amarillo' : 'verde'); gv.push('PDOP máximo de ' + fmt(pdop, 1)); }
+  }
+  if (r.tray) { g.push({fija:'verde', flotante:'amarillo', sin_fija:'rojo'}[r.tray]); gv.push('trayectoria anterior: ' + lab('tray', r.tray).toLowerCase()); }
+  add('gnss','GNSS e inercial', worst(g), gv.length ? cap(gv.join('; ')) : 'Sin vuelo', 'Verde: base completa, PDOP de 3 o menos y solución fija. Amarillo: PDOP de 3 a 4 o tramos flotantes identificados. Rojo: base con huecos, PDOP mayor a 4 o sin solución fija');
+  const cc = {ok:'verde', perdido:'amarillo', lluvia:'rojo'}[r.clima] || 'na';
+  add('clima','Condiciones', cc, r.clima ? lab('clima', r.clima) + (r.follaje ? '. Follaje: ' + r.follaje : '') : 'Sin dato', 'Verde: sin lluvia ni niebla. Amarillo: día perdido por clima. Rojo: vuelo con lluvia, llovizna o niebla; esos datos se revisan por ruido');
+  const pc = num(r.ctrlDia) || 0, pv = num(r.verDia) || 0, pb = num(r.dosDia) || 0, pt = pc + pv + pb;
+  const ccal = pt === 0 ? 'na' : ({fija:'verde', ppk:'amarillo', flotante:'rojo'}[r.ctrlCal] || 'amarillo');
+  add('ctrl','Control terrestre', ccal, pt === 0 ? 'Sin puntos hoy' : `${pc} de control, ${pv} de verificación en terreno abierto y ${pb} bajo el dosel. ${r.ctrlCal ? lab('ctrlCal', r.ctrlCal) : 'Falta la calidad de la solución'}`, 'Verde: solución fija con 3 cm o menos y verificación separada del control. Amarillo: puntos bajo el dosel en PPK por procesar. Rojo: solución flotante usada, o verificación usada en el ajuste');
+  const ns = TIPOS.reduce((s,[k]) => s + (num(r[k]) || 0), 0), em = num(r.errMax); let cs = 'na';
+  if (ns > 0) cs = (em == null || em > 2 || ['incompleta','fuera'].includes(r.fichas)) ? 'rojo' : (em > 1 || r.fichas === 'reemplazo' || !r.fichas) ? 'amarillo' : 'verde';
+  add('sitios','Sitios de campo', cs, ns === 0 ? 'Sin sitios hoy' : `${ns} ${ns === 1 ? 'sitio' : 'sitios'}; error máximo del centro: ${em == null ? 'sin dato' : fmt(em, 1) + ' m'}; fichas: ${r.fichas ? lab('fichas', r.fichas).toLowerCase() : 'sin dato'}`, 'Verde: error de 1 m o menos y ficha completa. Amarillo: error de 1 a 2 m o reemplazo justificado. Rojo: error mayor a 2 m o sin reportar, sitio fuera de la lista o ficha incompleta');
+  const ce = {completas:'verde', falta:'amarillo', sin:'rojo'}[r.evid] || 'amarillo';
+  add('evid','Evidencia', ce, r.evid ? lab('evid', r.evid) : 'Sin dato', 'Fotos con fecha, hora y coordenadas: base GNSS, puntos de control y cada sitio con su varilla');
+  return rows;
+}
+const colorDia = r => worst(evaluate(r).map(x => x.color));
+const colorDe = f => data.reportes[f] ? colorDia(Object.assign({fecha:f}, data.reportes[f])) : null;
+
+/* ---------- render ---------- */
+function pickDay(){
+  const reps = repList(), pl = planList();
+  if (reps.length) return reps[reps.length - 1].fecha;
+  if (pl.length) return hoy() < pl[0].fecha ? pl[0].fecha : hoy() > pl[pl.length - 1].fecha ? pl[pl.length - 1].fecha : hoy();
+  return hoy();
+}
+function render(){
+  if (!day) day = pickDay();
+  $('#dayLabel').textContent = fDay(day);
+  renderBand(); renderCards();
+  ({dia:renderDia, bitacora:renderBit, calendario:renderCal, curva:drawCharts, revuelos:renderRev, entregas:renderEnt}[tab])();
+}
+function renderBand(){
+  const tot = totalHa(), pl = planTo(day), re = realTo(day), ratio = pl > 0 ? re / pl : null, r = data.reportes[day];
+  $('#pct').innerHTML = ratio == null ? 's/d' : fmt(ratio * 100) + '<small>%</small>';
+  $('#balTxt').innerHTML = ratio == null ? (planList().length ? 'El calendario base todavía no tiene metas a esta fecha.' : 'Anota el calendario de SIGAP en la hoja de captura para calcular el avance contra lo planeado.')
+    : `de lo planeado al ${esc(fLong(day))}: <strong>${fmt(re)} ha</strong> voladas frente a ${fmt(pl)} ha planeadas${tot ? `, de ${fmt(tot)} ha en total` : ''}.`;
+  const miss = !r && metaDe(day) > 0 && day < hoy();
+  $('#dayChip').innerHTML = '<span class="lbl">Color del día</span>' + (r ? sem(colorDe(day)) : miss ? sem('rojo','Sin reporte') : sem('na', day > hoy() ? 'Todavía no llega' : 'Sin reporte'));
+  const pR = tot ? Math.min(100, re / tot * 100) : 0, pP = tot ? Math.min(100, pl / tot * 100) : 0;
+  $('#meter').innerHTML = tot ? `<span class="fill" style="width:${pR}%"></span><span class="tick" style="left:${pP}%"></span>` : '';
+  $('#meterTxt').innerHTML = tot ? `<span><i class="sw real"></i>Real: ${fmt(pR)}% del total</span><span><i class="sw plan"></i>Planeado a la fecha: ${fmt(pP)}%</span>` : '<span>Falta la superficie total en los valores declarados.</span>';
+  const cnt = {verde:0, amarillo:0, rojo:0};
+  repList().filter(x => x.fecha <= day).forEach(x => cnt[colorDia(x)]++);
+  const sinRep = planList().filter(p => p.ha > 0 && p.fecha <= day && p.fecha < hoy() && !data.reportes[p.fecha]).length;
+  $('#legend').innerHTML = '<span>Días hasta esta fecha:</span>' + ['verde','amarillo','rojo'].map(k => `<span>${sem(k)}<b>${cnt[k]}</b></span>`).join('') + (sinRep ? `<span>${sem('rojo','Sin reporte')}<b>${sinRep}</b></span>` : '');
+}
+function renderCards(){
+  const c = cfg(), tot = totalHa(), reps = repList().filter(x => x.fecha <= day), r = data.reportes[day] || {};
+  const lastOf = k => reps.slice().reverse().find(x => num(x[k]) != null);
+  const sum = k => reps.reduce((s,x) => s + (num(x[k]) || 0), 0), re = realTo(day);
+  const abiertos = revList().filter(v => !resuelto(v, day) && v.detectado && v.detectado <= day).length;
+  const mini = (v, m) => `<div class="mini"><span style="width:${m ? Math.min(100, v / m * 100) : 0}%"></span></div>`;
+  const card = (t, sub, body) => `<div class="card"><h3>${t}</h3><div class="who">${sub}</div>${body}</div>`;
+  const dl = items => `<dl>${items.map(([k,v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
+  const bars = items => `<ul class="bars">${items.map(([l,v,m]) => `<li><span>${l}</span><b>${fmt(v)}${m ? ' de ' + fmt(m) : ''}</b>${mini(v, m)}</li>`).join('')}</ul>`;
+  const dM = lastOf('densMed'), dB = lastOf('haBajo'), dT = lastOf('trasMin'), dP = lastOf('pdop');
+  const stp = num(c.sitiosTipo) || 12, sit = TIPOS.map(([k,l]) => [l, sum(k), stp]), totS = sit.reduce((s,x) => s + x[1], 0);
+  const est = id => (data.entregas[id] || {}).estado || 'pendiente', apr = ENTREGAS.filter(([id]) => est(id) === 'aprobada').length, next = ENTREGAS.find(([id]) => est(id) !== 'aprobada');
+  $('#cards').innerHTML = [
+    card('Vuelo LiDAR', tot ? fmt(tot) + ' ha por volar' : 'Falta la superficie total', mini(re, tot) + dl([['Hoy', num(r.haNuevas) == null ? 's/d' : fmt(num(r.haNuevas)) + ' ha'], ['Meta del día', fmt(metaDe(day)) + ' ha'], ['Acumulado', tot ? fmt(re / tot * 100) + '%' : fmt(re) + ' ha'], ['Revuelos abiertos', abiertos]])),
+    card('Calidad de datos', dM ? 'Último dato: ' + fShort(dM.fecha) : 'Sin datos revisados', dl([['Densidad mediana', dM ? fmt(num(dM.densMed)) + ' pts/m²' : 's/d'], ['Bajo 25 pts/m²', dB ? fmt(num(dB.haBajo), 1) + ' ha' : 's/d'], ['Traslape mínimo', dT ? fmt(num(dT.trasMin)) + '%' : 's/d'], ['PDOP máximo', dP ? fmt(num(dP.pdop), 1) : 's/d']])),
+    card('Control terrestre', 'Puntos acumulados frente a previstos', bars([['Control', sum('ctrlDia'), num(c.ptsCtrl)], ['Verificación abierta', sum('verDia'), num(c.ptsVer) || 30], ['Bajo el dosel', sum('dosDia'), num(c.ptsDos) || 25]])),
+    card('Sitios de campo', totS ? `${totS} de ${stp * 5} sitios` : 'Empiezan con los modelos preliminares', bars(sit)),
+    card('Entregas', `${apr} de ${ENTREGAS.length} aprobadas`, mini(apr, ENTREGAS.length) + `<p class="next">${next ? 'Sigue: <strong>' + esc(next[1]) + '</strong>' : 'Todas aprobadas'}</p>`)
+  ].join('');
+}
+function declarados(){
+  const c = cfg(), v = (x, u, dec = 0) => num(x) == null ? 's/d' : fmt(num(x), dec) + (u === '%' || u === '°' ? u : ' ' + u);
+  return `<div class="decl"><h3>Valores que SIGAP declaró antes de volar</h3><dl>${[['Superficie', v(c.totalHa,'ha')], ['Densidad esperada', v(c.densDecl,'pts/m²')], ['Altura sobre el terreno', v(c.altura,'m')], ['Velocidad', v(c.velocidad,'m/s',1)], ['Ángulo desde el nadir', v(c.angulo,'°')], ['Traslape lateral', v(c.trasDecl,'%')], ['Sensor', esc(c.sensor || 's/d')], ['Base GNSS', esc(c.base || 's/d')]].map(([k,x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('')}</dl></div>`;
+}
+const onboarding = () => `<div class="onb"><h2>Cómo empezar</h2><ol><li><strong>Valores declarados.</strong> En la hoja de captura, pestaña Valores declarados, anota lo que SIGAP declaró por escrito antes de volar: superficie, densidad esperada, altura, velocidad, ángulo, base GNSS y puntos previstos.</li><li><strong>Calendario.</strong> En la pestaña Calendario, una fila por día con la meta en hectáreas. Con ella se calcula el avance contra lo planeado.</li><li><strong>Reportes.</strong> Cada noche, una fila con los números del reporte de SIGAP. El color del día se calcula solo, con las reglas de la guía de supervisión.</li></ol><p>Este tablero lee la hoja y se actualiza solo cada 5 minutos. Para ver cómo se ve con datos, usa <strong>Ver un ejemplo</strong>: son datos ficticios.</p></div>`;
+function renderDia(){
+  const r = data.reportes[day], ed = editable();
+  const tools = `<div class="toolbar">${ed ? `<button class="btn primary" data-act="rep">${r ? 'Editar reporte' : 'Capturar reporte del día'}</button><button class="btn" data-act="cfg">Valores declarados</button><button class="btn" data-act="plan">Calendario base</button>` : ''}${demo ? '' : '<button class="btn" data-act="demo">Ver un ejemplo</button>'}</div>`;
+  if (!demo && !repList().length && !planList().length && !cfg().totalHa) { $('#tab-dia').innerHTML = tools + onboarding(); return; }
+  if (!r) {
+    const m = metaDe(day), past = day < hoy();
+    $('#tab-dia').innerHTML = tools + `<div class="empty"><p><strong>No hay reporte del ${esc(fLong(day))}.</strong></p><p>${m > 0 ? (past ? `Era día de vuelo con meta de ${fmt(m)} ha: sin reporte, el día cuenta como rojo.` : `Día de vuelo con meta de ${fmt(m)} ha.`) : 'El calendario base no tiene meta para este día.'}</p></div>` + declarados();
+    return;
+  }
+  const rows = evaluate(Object.assign({fecha:day}, r)), c = worst(rows.map(x => x.color));
+  const dif = r.colorSigap && r.colorSigap !== c ? `<p class="warn">SIGAP reportó el día en <strong>${LBL[r.colorSigap].toLowerCase()}</strong>; con los datos del reporte sale <strong>${LBL[c].toLowerCase()}</strong>. Revisar con la evidencia (anexo, sección 7).</p>` : '';
+  const notas = [['Vuelos y área', `${fmt(num(r.vuelos))} vuelos; ${fmt(num(r.haNuevas))} ha nuevas${num(r.haRevuelo) ? ' y ' + fmt(num(r.haRevuelo), 1) + ' ha vueltas a volar' : ''}; meta del día: ${fmt(metaDe(day))} ha`], ['Incidentes y riesgos', r.incidentes], ['Plan del día siguiente', r.planManana], ['Nota de la Dirección', r.nota]].filter(x => x[1]);
+  $('#tab-dia').innerHTML = tools + `<div class="dayhead"><h2>Reporte del ${esc(fLong(day))}</h2>${sem(c)}</div>${dif}<div class="tablewrap"><table class="stack"><thead><tr><th>Indicador</th><th>Lo que reporta</th><th>Color</th><th>Regla</th></tr></thead><tbody>${rows.map(x => `<tr><td class="ind">${esc(x.nombre)}</td><td>${esc(x.valor)}</td><td>${sem(x.color)}</td><td class="rule">${esc(x.regla)}</td></tr>`).join('')}</tbody></table></div><div class="notes">${notas.map(([k,v]) => `<div><h3>${k}</h3><p>${esc(v)}</p></div>`).join('')}</div>` + declarados();
+}
+function renderBit(){
+  const rows = repList().slice().reverse().map(r => ({r, c:colorDia(r)})).filter(x => bitFilter === 'all' || x.c === bitFilter);
+  const chips = [['all','Todos'],['verde','Verde'],['amarillo','Amarillo'],['rojo','Rojo']].map(([k,l]) => `<button class="chip" data-bit="${k}" aria-pressed="${bitFilter === k}">${l}</button>`).join('');
+  const nd = (v, u, dec = 0) => num(v) == null ? 's/d' : fmt(num(v), dec) + u;
+  $('#tab-bitacora').innerHTML = `<div class="toolbar"><div class="chips">${chips}</div><span class="spacer"></span><button class="btn" data-act="copy">Copiar tabla</button></div>` + (rows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>Fecha</th><th>Color</th><th class="n">Avance</th><th class="n">Área nueva</th><th class="n">Densidad mediana</th><th class="n">Bajo 25</th><th class="n">Traslape</th><th class="n">PDOP</th><th class="n">Puntos</th><th class="n">Sitios</th></tr></thead><tbody>${rows.map(({r,c}) => {
+    const pl = planTo(r.fecha), pts = (num(r.ctrlDia) || 0) + (num(r.verDia) || 0) + (num(r.dosDia) || 0), ns = TIPOS.reduce((s,[k]) => s + (num(r[k]) || 0), 0);
+    return `<tr class="go" data-day="${r.fecha}" tabindex="0"><td>${esc(fShort(r.fecha))}</td><td>${sem(c)}</td><td class="n">${pl > 0 ? fmt(realTo(r.fecha) / pl * 100) + '%' : 's/d'}</td><td class="n">${fmt(num(r.haNuevas))} de ${fmt(metaDe(r.fecha))} ha</td><td class="n">${nd(r.densMed,' pts/m²')}</td><td class="n">${nd(r.haBajo,' ha',1)}</td><td class="n">${nd(r.trasMin,'%')}</td><td class="n">${nd(r.pdop,'',1)}</td><td class="n">${pts}</td><td class="n">${ns}</td></tr>`; }).join('')}</tbody></table></div><p class="note">Toca un día para ver su reporte completo.</p>` : `<div class="empty">${repList().length ? 'Ningún día coincide con el filtro.' : 'Todavía no hay reportes.'}</div>`);
+}
+async function copyBit(){
+  const head = ['Fecha','Color','Avance (% de lo planeado)','Área nueva (ha)','Meta (ha)','Densidad mediana (pts/m²)','Bajo 25 pts/m² (ha)','Traslape mínimo (%)','PDOP máximo','Puntos de control y verificación','Sitios','Incidentes','Nota'];
+  const lines = [head].concat(repList().map(r => { const pl = planTo(r.fecha); return [r.fecha, LBL[colorDia(r)], pl > 0 ? Math.round(realTo(r.fecha) / pl * 100) : '', r.haNuevas ?? '', metaDe(r.fecha), r.densMed ?? '', r.haBajo ?? '', r.trasMin ?? '', r.pdop ?? '', (num(r.ctrlDia) || 0) + (num(r.verDia) || 0) + (num(r.dosDia) || 0), TIPOS.reduce((s,[k]) => s + (num(r[k]) || 0), 0), r.incidentes || '', r.nota || '']; }));
+  try { await navigator.clipboard.writeText(lines.map(l => l.map(v => String(v).replace(/[\t\n]/g, ' ')).join('\t')).join('\n')); toast('Tabla copiada: pégala en Excel o en Sheets'); }
+  catch (e) { toast('No se pudo copiar en esta vista'); }
+}
+function renderCal(){
+  if (!calMonth) calMonth = day.slice(0, 7);
+  const [y, m] = calMonth.split('-').map(Number), first = new Date(y, m - 1, 1), dim = new Date(y, m, 0).getDate(), off = (first.getDay() + 6) % 7;
+  const prog = {}; revList().forEach(v => { if (v.programado && !resuelto(v, v.programado)) (prog[v.programado] = prog[v.programado] || []).push(v.zona); });
+  let cells = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<div class="wd">${d}</div>`).join('');
+  for (let i = 0; i < Math.ceil((off + dim) / 7) * 7; i++) {
+    const d = new Date(y, m - 1, 1 - off + i), s = iso(d), out = d.getMonth() !== m - 1, r = data.reportes[s], meta = metaDe(s);
+    let cls = '', body = '', aria = fDay(s);
+    if (r) { const c = colorDe(s); cls = 'c-' + c; body = sem(c) + `<span class="ha">${fmt(num(r.haNuevas))} ha</span>`; aria += ': ' + LBL[c]; }
+    else if (meta > 0 && s < hoy()) { cls = 'c-rojo'; body = sem('rojo','Sin reporte'); aria += ': sin reporte'; }
+    else if (meta > 0) body = `<span class="meta">Meta ${fmt(meta)} ha</span>`;
+    else if (data.plan[s] && data.plan[s].nota) body = `<span class="meta">${esc(data.plan[s].nota)}</span>`;
+    if (prog[s]) body += `<span class="rv">Revuelo: ${esc(prog[s].join(', '))}</span>`;
+    cells += `<button class="cday ${out ? 'out' : ''} ${cls} ${s === day ? 'sel' : ''}" data-day="${s}" aria-label="${esc(aria)}"><span class="d">${d.getDate()}</span>${body}</button>`;
+  }
+  $('#tab-calendario').innerHTML = `<div class="calnav"><button data-cal="-1" aria-label="Mes anterior">‹</button><h2>${cap(MESES[m - 1])} ${y}</h2><button data-cal="1" aria-label="Mes siguiente">›</button></div><div class="calgrid">${cells}</div><div class="callegend">${sem('verde')}${sem('amarillo')}${sem('rojo')}${sem('rojo','Sin reporte')}<span>Meta del día y revuelos programados, en texto</span></div><p class="note">Toca un día para ver su reporte.</p>`;
+}
+function renderRev(){
+  const list = revList().slice().reverse(), ed = editable();
+  $('#tab-revuelos').innerHTML = `<div class="toolbar">${ed ? '<button class="btn primary" data-act="rev">Agregar revuelo</button>' : ''}<p class="note" style="margin:0">Toda zona bajo 25 pts/m² o con traslape de 50% o menos se vuelve a volar dentro de las 48 horas siguientes y antes de retirar el equipo (anexo, sección 7).</p></div>` + (list.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>Zona</th><th class="n">Área</th><th>Motivo</th><th>Detectado</th><th>Programado</th><th>Resuelto</th><th>Estado al ${esc(fShort(day))}</th>${ed ? '<th></th>' : ''}</tr></thead><tbody>${list.map(v => { const [c,t] = estRev(v, day); return `<tr><td>${esc(v.zona)}</td><td class="n">${num(v.ha) == null ? 's/d' : fmt(num(v.ha), 1) + ' ha'}</td><td>${esc(lab('motivo', v.motivo))}</td><td>${v.detectado ? esc(fShort(v.detectado)) : 's/d'}</td><td>${v.programado ? esc(fShort(v.programado)) : 'Sin fecha'}</td><td>${v.resuelto ? esc(fShort(v.resuelto)) : ''}</td><td>${sem(c, t)}</td>${ed ? `<td><button class="iconbtn" data-rev="${esc(v.id)}">Editar</button></td>` : ''}</tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Sin revuelos registrados.</div>');
+}
+function renderEnt(){
+  const ed = editable();
+  $('#tab-entregas').innerHTML = `<p class="note lead">Cada entrega se aprueba por escrito solo con el dictamen técnico favorable, emitido en un máximo de 5 días hábiles, y el pago se libera contra esa aprobación (anexo, sección 6).</p><ul class="ent">${ENTREGAS.map(([id,t,crit]) => { const e = data.entregas[id] || {}, [l,c] = EST[e.estado || 'pendiente']; return `<li><div class="eh"><h3>${esc(t)}</h3>${sem(c, l)}</div><p class="crit">${esc(crit)}</p><p class="m">${e.recibida ? 'Recibida el ' + esc(fLong(e.recibida)) : 'Sin recibir'}${e.dictamen ? '. Dictamen del ' + esc(fLong(e.dictamen)) : ''}${e.nota ? '. ' + esc(e.nota) : ''}</p>${ed ? `<button class="btn small" data-ent="${id}">Actualizar</button>` : ''}</li>`; }).join('')}</ul>`;
+}
+
+/* ---------- gráficas ---------- */
+function drawA(){
+  const box = $('#figA'), s = box.querySelector('svg'), W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  const pl = planList(), reps = repList(), tot = totalHa();
+  $('#emptyA').hidden = !!(pl.length && tot); $('#tipA').hidden = true;
+  if (!pl.length || !tot) { s.innerHTML = ''; return; }
+  const all = pl.map(p => p.fecha).concat(reps.map(r => r.fecha)).sort(), a = all[0], n = diffD(a, all[all.length - 1]) + 1;
+  const days = Array.from({length:n}, (_,i) => addD(a, i)), narrow = W < 520;
+  const L = narrow ? 38 : 46, R = narrow ? 14 : 84, T = 16, B = 30, iw = W - L - R, ih = H - T - B;
+  const x = i => L + (n === 1 ? iw / 2 : iw * i / (n - 1)), y = v => T + ih * (1 - v / 100);
+  const lastRep = reps.length ? reps[reps.length - 1].fecha : null;
+  const P = days.map(d => planTo(d) / tot * 100), Rv = days.map(d => lastRep && d <= lastRep ? realTo(d) / tot * 100 : null);
+  const path = arr => arr.map((v,i) => v == null ? '' : `${x(i).toFixed(1)} ${y(v).toFixed(1)}`).filter(Boolean).map((p,i) => (i ? 'L' : 'M') + p).join('');
+  let g = [0,25,50,75,100].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="ax">${v}%</text>`).join('');
+  const step = Math.max(1, Math.ceil(n / (narrow ? 4 : 8)));
+  days.forEach((d,i) => { if (i % step === 0) g += `<text x="${x(i)}" y="${H - 9}" text-anchor="middle" class="ax">${esc(fShort(d))}</text>`; });
+  g += `<path d="${path(P)}" class="lplan"/><path d="${path(Rv)}" class="lreal"/>`;
+  reps.forEach(r => { const i = diffD(a, r.fecha); g += `<circle cx="${x(i)}" cy="${y(Rv[i])}" r="5" class="pt c-${colorDia(r)}"/>`; });
+  if (!narrow) { g += `<text x="${x(n - 1) + 8}" y="${y(P[n - 1]) + 4}" class="lab">Planeado</text>`; if (lastRep) { const i = diffD(a, lastRep); g += `<text x="${x(i) + 8}" y="${y(Rv[i]) + 18}" class="lab strong">Real: ${fmt(Rv[i])}%</text>`; } }
+  g += `<line class="xh" id="xh" x1="0" x2="0" y1="${T}" y2="${T + ih}" visibility="hidden"/>`;
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`); s.innerHTML = g;
+  s.onpointermove = e => {
+    const px = e.clientX - s.getBoundingClientRect().left, i = Math.max(0, Math.min(n - 1, Math.round((px - L) / (iw / Math.max(1, n - 1)))));
+    const xh = s.querySelector('#xh'); xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
+    const c = colorDe(days[i]), tip = $('#tipA');
+    tip.innerHTML = `<strong>${esc(fDay(days[i]))}</strong><br>Planeado: ${fmt(P[i], 1)}%<br>Real: ${Rv[i] == null ? 's/d' : fmt(Rv[i], 1) + '%'}${c ? '<br>' + sem(c) : ''}`;
+    tip.hidden = false; tip.style.left = Math.max(4, Math.min(x(i) + 12, W - tip.offsetWidth - 4)) + 'px'; tip.style.top = (T + 4) + 'px';
+  };
+  s.onpointerleave = () => { s.querySelector('#xh').setAttribute('visibility', 'hidden'); $('#tipA').hidden = true; };
+}
+function drawB(){
+  const box = $('#figB'), s = box.querySelector('svg'), W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  const reps = repList().filter(r => num(r.densMed) != null), dc = num(cfg().densDecl);
+  $('#emptyB').hidden = reps.length > 0;
+  if (!reps.length) { s.innerHTML = ''; return; }
+  const narrow = W < 520, L = narrow ? 38 : 46, R = narrow ? 14 : 116, T = 16, B = 30, iw = W - L - R, ih = H - T - B, n = reps.length;
+  const max = Math.max(30, dc || 0, ...reps.map(r => num(r.densMed))) * 1.15, st = max <= 60 ? 10 : max <= 150 ? 25 : 50;
+  const x = i => L + (n === 1 ? iw / 2 : iw * i / (n - 1)), y = v => T + ih * (1 - v / max);
+  let g = '';
+  for (let v = 0; v <= max; v += st) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="ax">${v}</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${y(25)}" y2="${y(25)}" class="lmin"/>`;
+  if (dc) g += `<line x1="${L}" x2="${W - R}" y1="${y(dc)}" y2="${y(dc)}" class="lplan"/>`;
+  if (!narrow) { g += `<text x="${W - R + 8}" y="${y(25) + 4}" class="lab">Mínimo: 25</text>`; if (dc) g += `<text x="${W - R + 8}" y="${y(dc) + 4}" class="lab">Declarada: ${fmt(dc)}</text>`; }
+  g += `<path d="${reps.map((r,i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(num(r.densMed)).toFixed(1)).join('')}" class="lreal"/>`;
+  const step = Math.max(1, Math.ceil(n / (narrow ? 4 : 8)));
+  reps.forEach((r,i) => {
+    const v = num(r.densMed), c = evaluate(r).find(z => z.k === 'med').color;
+    g += `<circle cx="${x(i)}" cy="${y(v)}" r="6" class="pt c-${c}"><title>${esc(fShort(r.fecha))}: ${fmt(v)} pts/m², ${LBL[c].toLowerCase()}</title></circle>`;
+    if (i % step === 0) g += `<text x="${x(i)}" y="${H - 9}" text-anchor="middle" class="ax">${esc(fShort(r.fecha))}</text>`;
+  });
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`); s.innerHTML = g;
+}
+function drawCharts(){ drawA(); drawB(); }
+const ro = new ResizeObserver(() => { if (tab === 'curva') drawCharts(); });
+ro.observe($('#figA')); ro.observe($('#figB'));
+
+/* ---------- datos: tablero compartido ---------- */
+function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2400); }
+async function write(op, c, id, v){
+  if (demo) { if (op === 'delete') delete data[c][id]; else data[c][id] = Object.assign(op === 'update' ? {} : {}, op === 'update' ? data[c][id] : {}, v); render(); return true; }
+  if (store !== 'db' || !DB) { toast('Sin conexión al tablero compartido: no se guardó'); return false; }
+  try { const ref = DB.collection(c).doc(id); if (op === 'set') await ref.set(v); else if (op === 'update') await ref.update(v); else await ref.delete(); return true; }
+  catch (e) { toast(e && e.code === 'not_granted' ? 'Solo lectura: pide acceso de edición a la dueña del tablero' : 'No se pudo guardar. Intenta de nuevo.'); return false; }
+}
+
+/* ---------- formularios ---------- */
+const dlg = $('#dlg'), form = $('#dlgForm');
+function field(f, v){
+  if (f.h) return `<h3 class="fh">${esc(f.h)}</h3>`;
+  const id = 'f_' + f.k, cls = f.full ? 'full' : '';
+  if (f.type === 'select') return `<label class="${cls}" for="${id}">${esc(f.l)}<select id="${id}" name="${f.k}">${OPT[f.opt].map(([k,l]) => `<option value="${esc(k)}" ${String(v ?? '') === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  if (f.type === 'area') return `<label class="${cls}" for="${id}">${esc(f.l)}<textarea id="${id}" name="${f.k}">${esc(v ?? '')}</textarea></label>`;
+  return `<label class="${cls}" for="${id}">${esc(f.l)}<input id="${id}" name="${f.k}" type="${f.type || 'text'}" ${f.type === 'number' ? 'inputmode="decimal" step="any" min="0"' : ''} value="${esc(v ?? '')}" ${f.req ? 'required' : ''} ${f.ph ? `placeholder="${esc(f.ph)}"` : ''}></label>`;
+}
+function openForm(title, fields, values, onSave, onDelete, intro){
+  form.innerHTML = `<h2>${esc(title)}</h2>${intro ? `<p class="intro">${esc(intro)}</p>` : ''}<div class="fields">${fields.map(f => field(f, values[f.k])).join('')}</div><div class="dlg-actions">${onDelete ? '<button type="button" class="btn danger left" id="dDel">Eliminar</button>' : ''}<button type="button" class="btn" id="dCancel">Cancelar</button><button type="submit" class="btn primary">Guardar</button></div>`;
+  $('#dCancel').onclick = () => dlg.close();
+  if (onDelete) { const b = $('#dDel'); b.onclick = async () => { if (b.dataset.arm) { dlg.close(); if (await onDelete() !== false) toast('Eliminado'); } else { b.dataset.arm = '1'; b.textContent = 'Toca otra vez para eliminar'; setTimeout(() => { if (b.isConnected) { delete b.dataset.arm; b.textContent = 'Eliminar'; } }, 4000); } }; }
+  form.onsubmit = async e => { e.preventDefault(); const v = Object.fromEntries([...new FormData(form).entries()].map(([k,x]) => [k, String(x).trim()])); dlg.close(); if (await onSave(v) !== false) toast('Guardado'); };
+  dlg.showModal(); form.scrollTop = 0;
+}
+const F_REP = [
+  {k:'fecha', l:'Fecha del reporte', type:'date', req:true}, {k:'aTiempo', l:'¿Llegó antes de las 21:00?', type:'select', opt:'aTiempo'}, {k:'colorSigap', l:'Color que asignó SIGAP', type:'select', opt:'colorSigap'},
+  {h:'Vuelo del día'}, {k:'vuelos', l:'Vuelos', type:'number'}, {k:'haNuevas', l:'Área nueva (ha)', type:'number'}, {k:'haRevuelo', l:'Área vuelta a volar (ha)', type:'number'}, {k:'clima', l:'Condiciones', type:'select', opt:'clima'}, {k:'follaje', l:'Estado del follaje', full:true, ph:'Por ejemplo, encinos con hojas'},
+  {h:'Densidad y traslape (datos revisados del vuelo anterior; el traslape, del vuelo de hoy)'}, {k:'densMed', l:'Densidad mediana (pts/m²)', type:'number'}, {k:'haBajo', l:'Área bajo 25 pts/m² (ha)', type:'number'}, {k:'revProg', l:'¿Tiene fecha para volar de nuevo en 48 h?', type:'select', opt:'sn'}, {k:'densExpl', l:'¿La caída de densidad está explicada?', type:'select', opt:'sn'}, {k:'trasMin', l:'Traslape lateral mínimo (%)', type:'number'}, {k:'trasProg', l:'¿Tramos de 50% o menos ya programados?', type:'select', opt:'sn'},
+  {h:'Parámetros y GNSS'}, {k:'param', l:'Altura, velocidad y ángulo', type:'select', opt:'param'}, {k:'baseOk', l:'¿La base registró todo el vuelo?', type:'select', opt:'baseOk'}, {k:'pdop', l:'PDOP máximo', type:'number'}, {k:'tray', l:'Trayectoria del día anterior', type:'select', opt:'tray'},
+  {h:'Control terrestre'}, {k:'ctrlDia', l:'Puntos de control', type:'number'}, {k:'verDia', l:'Verificación en terreno abierto', type:'number'}, {k:'dosDia', l:'Verificación bajo el dosel', type:'number'}, {k:'ctrlCal', l:'Calidad de la solución', type:'select', opt:'ctrlCal'},
+  {h:'Sitios de campo'}, ...TIPOS.map(([k,l]) => ({k, l:'Sitios de ' + l.toLowerCase(), type:'number'})), {k:'errMax', l:'Error máximo del centro (m)', type:'number'}, {k:'fichas', l:'Fichas', type:'select', opt:'fichas'},
+  {h:'Evidencia y notas'}, {k:'evid', l:'Fotos con fecha, hora y coordenadas', type:'select', opt:'evid'}, {k:'incidentes', l:'Incidentes y riesgos', type:'area', full:true}, {k:'planManana', l:'Plan del día siguiente', type:'area', full:true}, {k:'nota', l:'Nota de la Dirección', type:'area', full:true}];
+function repForm(){
+  const old = data.reportes[day], prevDay = day;
+  const vals = Object.assign({fecha:day}, old || {aTiempo:'si', evid:'completas', clima:'ok', baseOk:'si', revProg:'no', densExpl:'no', trasProg:'no'});
+  openForm(old ? 'Editar reporte' : 'Reporte del día', F_REP, vals, async v => {
+    const f = v.fecha; delete v.fecha; if (!f) return false;
+    const ok = await write('set', 'reportes', f, v);
+    if (ok && old && f !== prevDay) await write('delete', 'reportes', prevDay);
+    if (ok) { day = f; render(); }
+    return ok;
+  }, old ? () => write('delete', 'reportes', prevDay) : null, 'Captura los números del reporte de SIGAP; deja en blanco lo que no venga. El color se calcula con las reglas de la guía de supervisión.');
+}
+const F_CFG = [
+  {k:'totalHa', l:'Superficie total por volar (ha)', type:'number'}, {k:'densDecl', l:'Densidad esperada (pts/m²)', type:'number', ph:'25 o más; meta: 50'}, {k:'altura', l:'Altura sobre el terreno (m)', type:'number'}, {k:'velocidad', l:'Velocidad (m/s)', type:'number'}, {k:'angulo', l:'Ángulo de escaneo desde el nadir (°)', type:'number', ph:'12 o menos'}, {k:'trasDecl', l:'Traslape lateral (%)', type:'number', ph:'Mayor a 50'},
+  {k:'sensor', l:'Sensor y plataforma', full:true}, {k:'base', l:'Base GNSS', full:true, ph:'Punto y liga a la Red Geodésica Nacional Activa'},
+  {k:'ptsCtrl', l:'Puntos de control previstos', type:'number'}, {k:'ptsVer', l:'Verificación en terreno abierto prevista', type:'number', ph:'30 o más'}, {k:'ptsDos', l:'Verificación bajo el dosel prevista', type:'number', ph:'Propuesta: 25'}, {k:'sitiosTipo', l:'Sitios por tipo de vegetación', type:'number', ph:'12'}];
+const cfgForm = () => openForm('Valores declarados por SIGAP', F_CFG, cfg(), v => write('set', 'config', 'base', v), null, 'Lo que SIGAP declaró por escrito antes de volar (anexo, sección 11). Todo el seguimiento se compara contra estos valores.');
+const F_REV = [{k:'zona', l:'Zona', full:true, req:true, ph:'Bloque, líneas o cañada'}, {k:'ha', l:'Área (ha)', type:'number'}, {k:'motivo', l:'Motivo', type:'select', opt:'motivo'}, {k:'detectado', l:'Detectado el', type:'date'}, {k:'programado', l:'Programado para', type:'date'}, {k:'resuelto', l:'Resuelto el', type:'date'}];
+const revForm = id => openForm(id ? 'Editar revuelo' : 'Nuevo revuelo', F_REV, id ? data.revuelos[id] : {detectado:day, motivo:'densidad'}, v => write('set', 'revuelos', id || uid(), v), id ? () => write('delete', 'revuelos', id) : null);
+const F_ENT = [{k:'estado', l:'Estado', type:'select', opt:'estado'}, {k:'recibida', l:'Recibida el', type:'date'}, {k:'dictamen', l:'Dictamen del', type:'date'}, {k:'nota', l:'Observaciones', type:'area', full:true}];
+const entForm = id => openForm(ENTREGAS.find(e => e[0] === id)[1], F_ENT, data.entregas[id] || {}, v => write('set', 'entregas', id, v));
+function planForm(){
+  const rows = planList(), tot = totalHa();
+  const row = p => `<div class="prow" data-p="${p.fecha}"><span>${esc(fDay(p.fecha))}</span><span class="n">${fmt(p.ha)} ha</span><span class="m">${esc(p.nota)}</span><button type="button" class="iconbtn" data-pdel="${p.fecha}">Quitar</button></div>`;
+  form.innerHTML = `<h2>Calendario base</h2><p class="intro">La meta de cada día en hectáreas, como la entregó SIGAP antes de volar. Los días sin vuelo, como el procesamiento del bloque de prueba, llevan meta 0 y una nota.</p>
+  <div class="gen"><h3 class="fh">Generar días seguidos</h3><div class="fields"><label>Primer día<input type="date" id="gIni"></label><label>Días de vuelo<input type="number" id="gN" min="1" step="1" inputmode="numeric"></label><label>Meta por día (ha)<input type="number" id="gHa" min="0" step="any" inputmode="decimal" placeholder="${tot ? 'Superficie entre días' : ''}"></label><label class="chk"><input type="checkbox" id="gDom" checked> Sin vuelo en domingo</label></div><button type="button" class="btn" id="gGo">Agregar estos días</button></div>
+  <h3 class="fh">Días capturados</h3><div class="planlist" id="plist">${rows.length ? rows.map(row).join('') : '<p class="m" style="padding:8px 10px;margin:0">Sin días todavía.</p>'}</div>
+  <div class="fields"><label>Día<input type="date" id="pF"></label><label>Meta (ha)<input type="number" id="pH" min="0" step="any" inputmode="decimal"></label><label class="full">Nota<input id="pN" placeholder="Opcional"></label></div>
+  <div class="dlg-actions"><button type="button" class="btn" id="pAdd">Agregar o cambiar este día</button><button type="button" class="btn primary" id="pClose">Listo</button></div>`;
+  $('#pClose').onclick = () => dlg.close();
+  $('#plist').onclick = async e => { const b = e.target.closest('[data-pdel]'); if (!b) return; if (await write('delete', 'plan', b.dataset.pdel)) b.closest('.prow').remove(); };
+  $('#pAdd').onclick = async () => { const f = $('#pF').value, h = num($('#pH').value); if (!f || h == null) { toast('Falta el día o la meta'); return; } if (await write('set', 'plan', f, {ha:String(h), nota:$('#pN').value.trim()})) { dlg.close(); toast('Día guardado'); } };
+  $('#gGo').onclick = async () => {
+    const ini = $('#gIni').value, n = Math.round(num($('#gN').value) || 0); let h = num($('#gHa').value);
+    if (!ini || n < 1) { toast('Falta el primer día o el número de días'); return; }
+    if (h == null) h = tot ? Math.round(tot / n * 10) / 10 : 0;
+    let f = ini, k = 0;
+    while (k < n) { if (!($('#gDom').checked && pd(f).getDay() === 0)) { if (!await write('set', 'plan', f, {ha:String(h), nota:''})) return; k++; } f = addD(f, 1); }
+    dlg.close(); toast(`${n} días agregados`);
+  };
+  dlg.showModal(); form.scrollTop = 0;
+}
+
+/* ---------- ejemplo con datos ficticios ---------- */
+function makeDemo(){
+  const d = empty(), R = o => Object.assign({aTiempo:'si', evid:'completas', clima:'ok', revProg:'no', densExpl:'no', trasProg:'no', baseOk:'si'}, o);
+  d.config.base = {totalHa:'2880', densDecl:'55', altura:'100', velocidad:'8', angulo:'12', trasDecl:'60', sensor:'LiDAR en dron, 3 retornos por pulso', base:'BASE-01, ligada a la Red Geodésica Nacional Activa', ptsCtrl:'15', ptsVer:'30', ptsDos:'25', sitiosTipo:'12'};
+  d.plan['2026-11-23'] = {ha:'120', nota:'Bloque de prueba'};
+  ['2026-11-24','2026-11-25'].forEach(f => d.plan[f] = {ha:'0', nota:'Procesamiento del bloque de prueba'});
+  ['2026-11-26','2026-11-27','2026-11-28','2026-11-30','2026-12-01','2026-12-02','2026-12-03','2026-12-04','2026-12-05','2026-12-07','2026-12-08','2026-12-09'].forEach(f => d.plan[f] = {ha:'230', nota:''});
+  d.reportes = {
+    '2026-11-23': R({vuelos:'3', haNuevas:'120', follaje:'encinos con hojas', param:'iguales', pdop:'2.0', trasMin:'58', ctrlDia:'6', verDia:'4', dosDia:'0', ctrlCal:'fija', colorSigap:'verde', incidentes:'Ninguno.', planManana:'Procesar el bloque de prueba y seguir con el control terrestre.'}),
+    '2026-11-24': R({vuelos:'0', haNuevas:'0', densMed:'58', haBajo:'0', tray:'fija', ctrlDia:'5', verDia:'6', dosDia:'3', ctrlCal:'ppk', colorSigap:'verde', incidentes:'Puntos bajo el dosel en ocupación estática; se procesan mañana.', planManana:'Revisión del bloque de prueba con la consultora.'}),
+    '2026-11-25': R({vuelos:'0', haNuevas:'0', ctrlDia:'4', verDia:'8', dosDia:'5', ctrlCal:'fija', colorSigap:'verde', incidentes:'Bloque de prueba revisado: hay suficientes puntos de suelo bajo el mesófilo. En cañadas se baja la altura a 90 m, con aviso por escrito enviado hoy.', planManana:'Inicio del vuelo de toda la reserva.'}),
+    '2026-11-26': R({vuelos:'4', haNuevas:'226', param:'avisado', pdop:'2.3', trasMin:'57', colorSigap:'verde', nota:'Altura de 90 m en cañadas, avisada el 25 de noviembre.'}),
+    '2026-11-27': R({vuelos:'4', haNuevas:'218', densMed:'63', haBajo:'0.8', revProg:'si', trasMin:'56', param:'iguales', pdop:'2.6', tray:'fija', colorSigap:'amarillo', incidentes:'0.8 ha bajo 25 pts/m² en el bloque 7.', planManana:'Volar de nuevo el bloque 7 y seguir con los bloques 8 y 9.'}),
+    '2026-11-28': R({vuelos:'3', haNuevas:'150', haRevuelo:'0.8', clima:'perdido', densMed:'60', haBajo:'0', trasMin:'55', param:'iguales', pdop:'3.4', tray:'fija', colorSigap:'amarillo', incidentes:'Viento fuerte desde las 13:00; se suspendió el vuelo de la tarde.'}),
+    '2026-11-30': R({vuelos:'4', haNuevas:'240', densMed:'59', haBajo:'0', trasMin:'57', param:'iguales', pdop:'2.2', tray:'fija', colorSigap:'verde'}),
+    '2026-12-01': R({vuelos:'4', haNuevas:'236', densMed:'41', haBajo:'3.2', trasMin:'48', trasProg:'si', param:'sin_aviso', pdop:'2.5', tray:'fija', colorSigap:'amarillo', incidentes:'Con viento, el piloto subió la velocidad a 11 m/s sin aviso.', planManana:'Volver a volar el bloque 9 y las líneas 41 y 42.', nota:'Pedir a SIGAP su plan de recuperación en 24 horas.'})};
+  d.revuelos = {
+    r1:{zona:'Bloque 7, ladera norte', ha:'0.8', motivo:'densidad', detectado:'2026-11-27', programado:'2026-11-28', resuelto:'2026-11-28'},
+    r2:{zona:'Bloque 9, cañada', ha:'3.2', motivo:'densidad', detectado:'2026-12-01', programado:'', resuelto:''},
+    r3:{zona:'Líneas 41 y 42', ha:'1.5', motivo:'traslape', detectado:'2026-12-01', programado:'2026-12-02', resuelto:''}};
+  d.entregas = {e1:{estado:'aprobada', recibida:'2026-11-18', dictamen:'2026-11-19'}, e2:{estado:'aprobada', recibida:'2026-11-25', dictamen:'2026-11-25', nota:'Altura de 90 m en cañadas'}};
+  return d;
+}
+function setDemo(on){ demo = on; data = on ? makeDemo() : real; day = null; calMonth = null; $('#demoBar').hidden = !on; render(); }
+
+/* ---------- eventos ---------- */
+function setTab(t){ tab = t; $$('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t)); $$('section.panel').forEach(p => p.hidden = p.id !== 'tab-' + t); render(); }
+document.addEventListener('click', e => {
+  if (e.target.closest('dialog')) return;
+  const t = e.target.closest('button, tr.go'); if (!t) return;
+  if (t.dataset.tab) return setTab(t.dataset.tab);
+  if (t.dataset.day) { day = t.dataset.day; return setTab('dia'); }
+  if (t.dataset.bit) { bitFilter = t.dataset.bit; return render(); }
+  if (t.dataset.cal) { calMonth = addM(calMonth, +t.dataset.cal); return render(); }
+  ({demo:() => setDemo(true), copy:copyBit}[t.dataset.act] || (() => {}))();
+});
+document.addEventListener('keydown', e => { const t = e.target.closest && e.target.closest('tr.go'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); day = t.dataset.day; setTab('dia'); } });
+$('#prevD').onclick = () => { day = addD(day, -1); calMonth = null; render(); };
+$('#nextD').onclick = () => { day = addD(day, 1); calMonth = null; render(); };
+$('#demoOff').onclick = () => setDemo(false);
+
+/* ---------- arranque: datos de la hoja de captura (Google) ---------- */
+const SHEET = '15cX1n45SuetYkHhAKm0sWk-E7XE6krCJkAOtTDB5FGk';
+const MAP = {"opts": {"aTiempo": [["Sí", "si"], ["No", "no"]], "colorSigap": [["Verde", "verde"], ["Amarillo", "amarillo"], ["Rojo", "rojo"]], "clima": [["Sin lluvia ni niebla", "ok"], ["Día perdido por clima", "perdido"], ["Voló con lluvia o niebla", "lluvia"]], "sn": [["Sí", "si"], ["No", "no"]], "param": [["Iguales a lo declarado", "iguales"], ["Cambio avisado por escrito", "avisado"], ["Cambio sin aviso", "sin_aviso"]], "baseOk": [["Sí", "si"], ["No", "no"]], "tray": [["Solución fija", "fija"], ["Tramos flotantes identificados", "flotante"], ["Sin solución fija", "sin_fija"]], "ctrlCal": [["Solución fija de 3 cm o menos", "fija"], ["Bajo el dosel en PPK por procesar", "ppk"], ["Flotante usada o verificación en el ajuste", "flotante"]], "fichas": [["Completas", "completas"], ["Con reemplazo justificado", "reemplazo"], ["Ficha incompleta", "incompleta"], ["Sitio fuera de la lista", "fuera"]], "evid": [["Completas", "completas"], ["Falta alguna", "falta"], ["Sin fotos", "sin"]], "motivo": [["Densidad bajo 25 pts/m²", "densidad"], ["Traslape de 50% o menos", "traslape"], ["Trayectoria sin solución fija", "trayectoria"], ["Ruido por lluvia o niebla", "ruido"], ["Otro", "otro"]], "estado": [["Pendiente", "pendiente"], ["En revisión", "revision"], ["Con observaciones", "observada"], ["Aprobada", "aprobada"]]}, "tabs": {"Reportes": [["fecha", "Fecha", "date", null], ["aTiempo", "Llegó antes de las 21:00", "opt", "aTiempo"], ["colorSigap", "Color que asignó SIGAP", "opt", "colorSigap"], ["vuelos", "Vuelos", "num", null], ["haNuevas", "Área nueva (ha)", "num", null], ["haRevuelo", "Área vuelta a volar (ha)", "num", null], ["clima", "Condiciones", "opt", "clima"], ["follaje", "Estado del follaje", "text", null], ["densMed", "Densidad mediana (pts/m²)", "num", null], ["haBajo", "Área bajo 25 pts/m² (ha)", "num", null], ["revProg", "Revuelo con fecha en 48 h", "opt", "sn"], ["densExpl", "Caída de densidad explicada", "opt", "sn"], ["trasMin", "Traslape lateral mínimo (%)", "num", null], ["trasProg", "Tramos de 50% o menos programados", "opt", "sn"], ["param", "Altura, velocidad y ángulo", "opt", "param"], ["baseOk", "Base GNSS registró todo el vuelo", "opt", "baseOk"], ["pdop", "PDOP máximo", "num", null], ["tray", "Trayectoria del día anterior", "opt", "tray"], ["ctrlDia", "Puntos de control", "num", null], ["verDia", "Verificación en terreno abierto", "num", null], ["dosDia", "Verificación bajo el dosel", "num", null], ["ctrlCal", "Calidad de la solución", "opt", "ctrlCal"], ["sPino", "Sitios de pino", "num", null], ["sEnc", "Sitios de encino", "num", null], ["sPE", "Sitios de pino-encino", "num", null], ["sBMM", "Sitios de bosque mesófilo", "num", null], ["sGal", "Sitios de bosque de galería", "num", null], ["errMax", "Error máximo del centro (m)", "num", null], ["fichas", "Fichas de campo", "opt", "fichas"], ["evid", "Fotos con fecha, hora y coordenadas", "opt", "evid"], ["incidentes", "Incidentes y riesgos", "text", null], ["planManana", "Plan del día siguiente", "text", null], ["nota", "Nota de la Dirección", "text", null]], "Calendario": [["fecha", "Fecha", "date", null], ["ha", "Meta (ha)", "num", null], ["nota", "Nota", "text", null]], "Revuelos": [["zona", "Zona", "text", null], ["ha", "Área (ha)", "num", null], ["motivo", "Motivo", "opt", "motivo"], ["detectado", "Detectado", "date", null], ["programado", "Programado", "date", null], ["resuelto", "Resuelto", "date", null]], "Entregas": [["entrega", "Entrega", "text", null], ["estado", "Estado", "opt", "estado"], ["recibida", "Recibida", "date", null], ["dictamen", "Dictamen", "date", null], ["nota", "Observaciones", "text", null]]}, "decl": [["totalHa", "Superficie total por volar (ha)"], ["densDecl", "Densidad esperada (pts/m²)"], ["altura", "Altura sobre el terreno (m)"], ["velocidad", "Velocidad (m/s)"], ["angulo", "Ángulo de escaneo desde el nadir (°)"], ["trasDecl", "Traslape lateral (%)"], ["sensor", "Sensor y plataforma"], ["base", "Base GNSS"], ["ptsCtrl", "Puntos de control previstos"], ["ptsVer", "Verificación en terreno abierto prevista"], ["ptsDos", "Verificación bajo el dosel prevista"], ["sitiosTipo", "Sitios por tipo de vegetación"]], "entregas": ["Antes de volar", "Bloque de prueba", "Fin del vuelo", "Modelos preliminares del terreno y del dosel", "Entrega final"]};
+const nrm = v => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const p2 = n => String(n).padStart(2, '0');
+const hhmm = () => { const t = new Date(); return p2(t.getHours()) + ':' + p2(t.getMinutes()); };
+let gvN = 0, leida = null;
+function gviz(hoja){
+  return new Promise((ok, ko) => {
+    const cb = '__hoja' + (++gvN), sc = document.createElement('script');
+    const fin = (err, t) => { clearTimeout(tm); delete window[cb]; sc.remove(); if (err) ko(err); else ok(t); };
+    const tm = setTimeout(() => fin(new Error('la hoja no respondió')), 20000);
+    window[cb] = r => (r && r.status !== 'error' && r.table) ? fin(null, r.table) : fin(new Error('la hoja respondió con un error'));
+    sc.onload = () => { if (window[cb]) fin(new Error('la hoja no está compartida con cualquier persona que tenga el enlace')); };
+    sc.onerror = () => fin(new Error('sin conexión con Google'));
+    sc.src = 'https://docs.google.com/spreadsheets/d/' + SHEET + '/gviz/tq?headers=1&sheet=' + encodeURIComponent(hoja) + '&tqx=out:json;responseHandler:' + cb;
+    document.head.appendChild(sc);
+  });
+}
+const celda = c => !c ? null : (c.v != null ? c.v : (c.f != null ? c.f : null));
+function aFecha(v){
+  if (v == null || v === '') return '';
+  let m = /^Date\((\d+),(\d+),(\d+)/.exec(v);
+  if (m) return m[1] + '-' + p2(+m[2] + 1) + '-' + p2(m[3]);
+  const t = String(v).trim();
+  if ((m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(t))) return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]);
+  if ((m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/.exec(t))) return m[3] + '-' + p2(m[2]) + '-' + p2(m[1]);
+  return '';
+}
+function aNum(v){
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') return String(v);
+  let t = String(v).replace(/\s/g, '');
+  t = /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) ? t.replace(/,/g, '') : t.replace(',', '.');
+  const n = parseFloat(t); return isFinite(n) ? String(n) : '';
+}
+function aOpc(set, v){
+  if (v == null || v === '') return '';
+  const k = nrm(v);
+  for (const [l, c] of MAP.opts[set]) if (nrm(l) === k || nrm(c) === k) return c;
+  for (const [c, l] of OPT[set] || []) if (nrm(l) === k) return c;
+  return '';
+}
+function filas(t, cols, hoja){
+  const heads = (t.cols || []).map(c => nrm(c.label)), idx = cols.map(c => heads.indexOf(nrm(c[1])));
+  if (!idx.some(i => i >= 0)) throw new Error('la pestaña ' + hoja + ' no tiene las columnas esperadas');
+  return (t.rows || []).map(r => { const o = {};
+    cols.forEach(([k, , ty, set], j) => { const v = idx[j] < 0 ? null : celda((r.c || [])[idx[j]]);
+      o[k] = ty === 'date' ? aFecha(v) : ty === 'num' ? aNum(v) : ty === 'opt' ? aOpc(set, v) : (v == null ? '' : String(v).trim()); });
+    return o; });
+}
+const NUMS = ['totalHa','densDecl','altura','velocidad','angulo','trasDecl','ptsCtrl','ptsVer','ptsDos','sitiosTipo'];
+async function leerHoja(){
+  const [R, C, V, X, E] = await Promise.all(['Reportes', 'Calendario', 'Valores declarados', 'Revuelos', 'Entregas'].map(gviz));
+  const d = empty(), base = {};
+  filas(R, MAP.tabs.Reportes, 'Reportes').forEach(o => { if (!o.fecha) return; const f = o.fecha; delete o.fecha; d.reportes[f] = o; });
+  filas(C, MAP.tabs.Calendario, 'Calendario').forEach(o => { if (o.fecha) d.plan[o.fecha] = {ha: o.ha || '0', nota: o.nota}; });
+  filas(V, [['campo', 'Campo', 'text'], ['valor', 'Valor', 'text']], 'Valores declarados').forEach(o => {
+    const e = MAP.decl.find(x => nrm(x[1]) === nrm(o.campo)); if (e && o.valor !== '') base[e[0]] = NUMS.includes(e[0]) ? aNum(o.valor) : o.valor; });
+  d.config = {base};
+  filas(X, MAP.tabs.Revuelos, 'Revuelos').forEach((o, i) => { if (o.zona || o.ha || o.detectado) d.revuelos['r' + (i + 1)] = o; });
+  filas(E, MAP.tabs.Entregas, 'Entregas').forEach((o, i) => {
+    const e = ENTREGAS.find(x => nrm(x[1]) === nrm(o.entrega)) || ENTREGAS[i];
+    if (e) d.entregas[e[0]] = {estado: o.estado || 'pendiente', recibida: o.recibida, dictamen: o.dictamen, nota: o.nota}; });
+  return d;
+}
+async function cargar(primera){
+  try {
+    real = await leerHoja(); store = 'sheet'; leida = hhmm(); TODAY = iso(new Date());
+    if (primera) day = null;
+    $('#mode').textContent = 'Datos de la hoja de captura, leídos a las ' + leida + '. Se actualizan solos cada 5 minutos.';
+  } catch (err) {
+    if (!leida) { store = 'none'; $('#mode').textContent = 'No se pudo leer la hoja de captura: ' + err.message + '. Mientras, puedes ver el ejemplo.'; }
+    else $('#mode').textContent = 'No se pudo actualizar a las ' + hhmm() + '; se muestran los datos leídos a las ' + leida + '.';
+  }
+  if (!demo) { data = real; render(); }
+}
+render();
+cargar(true);
+setInterval(() => cargar(false), 5 * 60 * 1000);
+}
+</script>
+</body>
+</html>
